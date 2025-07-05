@@ -19,7 +19,11 @@ interface Filters {
     locationState: string;
 }
 
-export default function BrowseJobs() {
+interface BrowseJobsProps {
+    mode: 'public' | 'dashboard';
+}
+
+export default function BrowseJobs({ mode }: BrowseJobsProps) {
     const router = useRouter();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [user, setUser] = useState<User | null>(null);
@@ -55,6 +59,10 @@ export default function BrowseJobs() {
         let query = supabase
             .from('jobs')
             .select('*', { count: 'exact', head: false });
+
+        if (mode === 'dashboard' && user) {
+            query = query.eq('user_id', user.id);
+        }
 
         // Apply filters
         if (debouncedDescription) {
@@ -131,7 +139,7 @@ export default function BrowseJobs() {
     return (
         <div className="container mx-auto p-4">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold">Browse Jobs</h1>
+                <h1 className="text-3xl font-bold">{ mode === 'dashboard' ? "User's Jobs Posting" : "Browse Jobs"}</h1>
                 <Link href={"/jobs/create"} className="btn btn-primary">
                     Post a Job
                 </Link>
@@ -171,7 +179,11 @@ export default function BrowseJobs() {
                             <th>Title / Company</th>
                             <th>Location</th>
                             <th>Type</th>
-                            <th>Actions</th>
+                            {
+                                mode === "dashboard" && (
+                                    <th>Actions</th>
+                                )
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -193,14 +205,14 @@ export default function BrowseJobs() {
                                     </td>
                                     <td>{job.location_city}, {job.location_state}</td>
                                     <td><span className="badge badge-ghost badge-sm">{job.job_type}</span></td>
-                                    <td>
-                                        {user && user.id === job.user_id && (
+                                    {mode === "dashboard" && user && user.id === job.user_id && (
+                                        <td>
                                             <div className="flex gap-2">
                                                 <Link href={`/jobs/${job.id}/edit`} className="btn btn-ghost btn-xs">Edit</Link>
                                                 <button onClick={() => handleDelete(job.id)} className="btn btn-error btn-xs">Delete</button>
                                             </div>
-                                        )}
-                                    </td>
+                                        </td>
+                                    )}
                                 </tr>
                             ))
                         ) : (
