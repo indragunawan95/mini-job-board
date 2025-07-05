@@ -5,7 +5,7 @@ export default function MainJobs() {
 
   return (
     <>
-        <BrowseJobs />
+      <BrowseJobs mode="dashboard"/>
     </>
   )
 }
