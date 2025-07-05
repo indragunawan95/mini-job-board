@@ -45,30 +45,39 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (
-    request.nextUrl.pathname !== "/" &&
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
+  const { pathname } = request.nextUrl;
+  const publicRoutes = ['/', '/auth/login', '/auth/signup', '/auth/callback', '/test',];
+
+  // Check if the requested path is a public route
+  const isPublicRoute = publicRoutes.some(route =>
+    pathname === route || (route.endsWith('/*') && pathname.startsWith(route.slice(0, -2)))
+  );
+
+  // If the user is not logged in and is trying to access a protected route...
+  if (!user && !isPublicRoute) {
+    // ...redirect them to the login page.
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
+    url.pathname = '/auth/login';
     return NextResponse.redirect(url);
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
-
+  // If a logged-in user tries to access a login/signup page...
+  if (user && (pathname === '/auth/login' || pathname === '/auth/signup')) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
   return supabaseResponse;
 }
+
+// Ensure the middleware runs on all paths except for static assets.
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+};
+
