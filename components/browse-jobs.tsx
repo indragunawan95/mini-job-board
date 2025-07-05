@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from "next/link"
-import { redirect, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useLocationSelector } from '@/hooks/useLocationSelector'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -186,7 +186,7 @@ export default function BrowseJobs() {
                             ))
                         ) : jobs.length > 0 ? (
                             jobs.map(job => (
-                                <tr key={job.id} className="hover:bg-primary-50 hover:cursor-pointer hover:opacity-90" onClick={_e => handleClick(job.id)}>
+                                <tr key={job.id} className="hover:bg-primary-50 hover:cursor-pointer hover:opacity-90" onClick={() => handleClick(job.id)}>
                                     <td>
                                         <div className="font-bold">{job.title}</div>
                                         <div className="text-sm opacity-70">{job.company_name}</div>
