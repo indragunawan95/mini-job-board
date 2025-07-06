@@ -1,5 +1,20 @@
 # Mini Job Board
 
+## Setup Instructions
+
+### Install dependency
+
+```
+npm install
+```
+
+### Setup Supabase Credentials in .env File
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
+
 ### Setup Supabase Database
 
 ```
@@ -25,13 +40,6 @@ CREATE TABLE public.jobs (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 ```
-
-### Setup Supabase Credential in .env file
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-```
-
 
 ### Setup Full Text Search for feature Search in Description
 
@@ -65,6 +73,7 @@ CREATE INDEX idx_jobs_tsvector_id ON jobs USING GIN(tsvector_id);
 ```
 
 ### Setup Postgres RPC function to query Browse Job in supabase backend
+
 ```
 CREATE OR REPLACE FUNCTION search_jobs(
     p_search_term TEXT,
@@ -80,20 +89,20 @@ RETURNS TABLE (
     id UUID,
     created_at TIMESTAMPTZ,
     user_id UUID,
-    title VARCHAR(255),          -- Corrected type
-    company_name VARCHAR(255),   -- Corrected type
-    description TEXT,            -- This was already correct
-    location_country VARCHAR(255), -- Corrected type
-    location_state VARCHAR(255),   -- Corrected type
-    location_city VARCHAR(255),    -- Corrected type
-    job_type public.job_type,    -- This was already correct
+    title VARCHAR(255),
+    company_name VARCHAR(255),
+    description TEXT,
+    location_country VARCHAR(255),
+    location_state VARCHAR(255),
+    location_city VARCHAR(255),
+    job_type public.job_type,
     total_rows BIGINT
 )
 AS $$
 BEGIN
     RETURN QUERY
     WITH filtered_jobs AS (
-        SELECT 
+        SELECT
             j.*,
             COUNT(*) OVER() AS total_rows
         FROM jobs j
@@ -129,13 +138,141 @@ $$ LANGUAGE plpgsql;
 ```
 
 ### Migrate existing data description to tsvector
+
 ```
 UPDATE jobs
-SET 
+SET
     tsvector_en = to_tsvector('english', description),
     tsvector_id = to_tsvector('indonesian', description)
-WHERE 
-    -- This WHERE clause is a safety measure. It ensures we only update rows 
+WHERE
+    -- This WHERE clause is a safety measure. It ensures we only update rows
     -- that haven't been processed yet. This makes the script "idempotent".
     tsvector_en IS NULL OR tsvector_id IS NULL;
 ```
+
+### Run the application
+
+```
+npm run dev
+```
+
+## Technical Approach
+
+The Mini Job Board was designed as a production-grade MVP following modern full-stack architecture patterns. The implementation focuses on maintainability, type safety, and clear separation of concerns while maintaining developer ergonomics.
+
+### Key Technical Decisions
+
+1. **Full-Stack Type Safety**
+   - TypeScript interfaces shared between frontend and database schema
+   - Database type generation via Supabase CLI
+   - Strict ESLint/TypeScript compiler rules
+
+2. **Hybrid Rendering Strategy**
+   - React Server Components for initial page loads
+   - Client-side hydration for interactive elements
+   - Static site generation for job listings
+
+3. **Search Architecture Tradeoffs**
+   - PostgreSQL full-text search over dedicated search engines (ES/Meilisearch)
+   - Multilingual support via parallel TSVECTOR columns
+   - Trigger-based index maintenance for simplicity
+
+4. **Authentication Pattern**
+   - Cookie-based sessions with middleware encryption
+   - Server-side auth validation for protected routes
+
+### Architecture Breakdown
+
+#### Directory Structure
+
+**Core Directories**
+
+```
+app/              # Application routes and page components (Next.js app router)
+components/       # Reusable UI components organized by feature
+lib/              # Shared utilities and service integrations
+types/            # TypeScript type definitions and interfaces
+```
+
+**Feature Areas**
+
+- **Authentication**: All user management flows (login, signup, password reset)
+- **Job Management**: Job posting creation, browsing, and editing functionality
+- **Data Layer**: Supabase database integration and API handlers
+
+**Support Structure**
+
+- `public/`: Static assets (images, icons)
+- `hooks/`: Custom React hooks for shared logic
+- Configuration files: Environment variables and project settings
+
+#### Frontend Layer Architecture
+
+```
+Next.js App Router
+├─ React Server Components
+│  ├─ Page Layouts
+│  │  ├─ Authentication Flows
+│  │  └─ Job Management
+└─ Client Components
+   ├─ Debounced Search
+   ├─ Location Filtering
+   └─ Form Handling
+```
+
+**Key Components:**
+
+- Core Framework: Next.js 14, React 18, TypeScript 5
+- State Management: URL parameters for filter management
+- UI System: Tailwind CSS with Daisy UI
+- Form System: React Hook Form
+
+#### Backend Services Architecture
+
+```
+Supabase Platform
+├─ PostgreSQL Database
+│  ├─ Row-Level Security Policies
+│  └─ PostgreSQL Functions
+│     ├─ Search Jobs Procedure
+│     └─ TSVECTOR Update Triggers
+└─ Authentication Service
+   ├─ Email/Password Auth
+   └─ Magic Links
+```
+
+- **Database Schema**: Structured with job_type enum for position categories
+- **Search Features**:
+  - Multi-language support via TSVECTOR
+  - Combined search filters
+  - Database-side pagination
+- **Security**: Row-level security policies for data isolation
+
+### Cross-Cutting Concerns
+
+1. **Performance**:
+   - Debounced search inputs (300ms)
+   - Database-side pagination
+   - Lazy-loaded rich text editor
+
+2. **Security**:
+
+- Environment variable encryption
+- Password hashing via Supabase Auth
+
+3. **Maintainability**:
+   - Atomic component design
+   - Dedicated hooks directory
+   - Shared TypeScript definitions
+   - ESLint/Prettier unified config
+
+## What would you improve if given more time?
+
+| Area       | Current Implementation | Proposed Improvement         | Benefit                    |
+| ---------- | ---------------------- | ---------------------------- | -------------------------- |
+| Search     | PostgreSQL TSVECTOR    | Dedicated search engine      | Better language support    |
+| Testing    | Manual verification    | Jest/Cypress test suite      | Regression prevention      |
+| Security   | Basic RLS policies     | Fine-grained access controls | Better tenant isolation    |
+| Analytics  | None                   | Basic event tracking         | Usage insights             |
+| CI/CD      | Manual deployment      | CI/CD pipeline               | Automated deployments      |
+| Job Skills | None                   | NLP-based skill extraction   | Better search capabilities |
