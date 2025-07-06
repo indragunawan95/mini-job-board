@@ -53,52 +53,44 @@ export default function BrowseJobs({ mode }: BrowseJobsProps) {
     }, []);
 
     const fetchJobs = useCallback(async () => {
+        // For dashboard mode, if the user isn't loaded yet, don't fetch.
+        if (mode === 'dashboard' && !user) {
+            setIsLoading(false);
+            setJobs([]);
+            return;
+        }
+
         setIsLoading(true);
         const supabase = createClient();
 
-        let query = supabase
-            .from('jobs')
-            .select('*', { count: 'exact', head: false });
+        // Prepare the parameters for our RPC call
+        const params = {
+            p_search_term: debouncedDescription,
+            p_job_type: filters.jobType,
+            p_location_country: filters.locationCountry,
+            p_location_state: filters.locationState,
+            p_user_id: mode === 'dashboard' ? user?.id : null, // Pass user_id only in dashboard mode
+            p_page_size: PAGE_SIZE,
+            p_page_number: currentPage
+        };
 
-        if (mode === 'dashboard' && user) {
-            query = query.eq('user_id', user.id);
-        }
-
-        // Apply filters
-        if (debouncedDescription) {
-            // Use the tsvector column for full-text search
-            // query = query.textSearch('description_tsvector', debouncedDescription);
-        }
-        if (filters.jobType) {
-            query = query.eq('job_type', filters.jobType);
-        }
-        if (filters.locationCountry) {
-            query = query.eq('location_country', filters.locationCountry);
-        }
-        if (filters.locationState) {
-            query = query.eq('location_state', filters.locationState);
-        }
-
-        // Apply pagination
-        const from = (currentPage - 1) * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
-        query = query.range(from, to);
-
-        // Order results
-        query = query.order('created_at', { ascending: false });
-
-        const { data, error, count } = await query;
+        // Call the RPC function
+        const { data, error } = await supabase.rpc('search_jobs', params);
 
         if (error) {
-            toast.error("Could not fetch jobs. " + error.message);
+            console.error("RPC Error:", error);
+            toast.error("Could not fetch jobs: " + error.message);
             setJobs([]);
+            setTotalCount(0);
         } else {
             setJobs(data as Job[]);
-            setTotalCount(count || 0);
+            // The total count is now returned with every row.
+            // We just need to grab it from the first row if it exists.
+            setTotalCount(data && data.length > 0 ? data[0].total_rows : 0);
         }
+
         setIsLoading(false);
     }, [currentPage, debouncedDescription, filters.jobType, filters.locationCountry, filters.locationState, mode, user]);
-
     useEffect(() => {
         fetchJobs();
     }, [fetchJobs]);
@@ -150,7 +142,7 @@ export default function BrowseJobs({ mode }: BrowseJobsProps) {
                 <input
                     type="text"
                     name="description"
-                    placeholder="Search title or description..."
+                    placeholder="Search skill in description..."
                     className="input input-bordered w-full"
                     value={filters.description}
                     onChange={handleFilterChange}
