@@ -46,12 +46,27 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const publicRoutes = ['/', '/auth/login', '/auth/signup', '/auth/callback', '/test',];
+  const publicRoutes = [
+    '/',
+    '/auth/error',
+    '/auth/login',
+    '/auth/sign-up',
+    '/auth/sign-up-success',
+    '/auth/update-password',
+    '/auth/forgot-password',
+    '/auth/callback',
+    // This regex matches '/jobs/' followed by an ID, but NOT '/jobs/create'
+    // and it must end right after the ID.
+    /^\/jobs\/(?!create)[^/]+$/,
+  ];
 
   // Check if the requested path is a public route
-  const isPublicRoute = publicRoutes.some(route =>
-    pathname === route || (route.endsWith('/*') && pathname.startsWith(route.slice(0, -2)))
-  );
+  const isPublicRoute = publicRoutes.some(route => {
+    if (route instanceof RegExp) {
+      return route.test(pathname);
+    }
+    return pathname === route;
+  });
 
   // If the user is not logged in and is trying to access a protected route...
   if (!user && !isPublicRoute) {
@@ -67,17 +82,4 @@ export async function updateSession(request: NextRequest) {
   }
   return supabaseResponse;
 }
-
-// Ensure the middleware runs on all paths except for static assets.
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
-};
 

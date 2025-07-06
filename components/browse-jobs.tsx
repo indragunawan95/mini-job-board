@@ -97,7 +97,7 @@ export default function BrowseJobs({ mode }: BrowseJobsProps) {
             setTotalCount(count || 0);
         }
         setIsLoading(false);
-    }, [currentPage, debouncedDescription, filters.jobType, filters.locationCountry, filters.locationState]);
+    }, [currentPage, debouncedDescription, filters.jobType, filters.locationCountry, filters.locationState, mode, user]);
 
     useEffect(() => {
         fetchJobs();
@@ -198,8 +198,8 @@ export default function BrowseJobs({ mode }: BrowseJobsProps) {
                             ))
                         ) : jobs.length > 0 ? (
                             jobs.map(job => (
-                                <tr key={job.id} className="hover:bg-primary-50 hover:cursor-pointer hover:opacity-90" onClick={() => handleClick(job.id)}>
-                                    <td>
+                                <tr key={job.id} >
+                                    <td className="hover:bg-primary-50 hover:cursor-pointer hover:opacity-90" onClick={() => handleClick(job.id)}>
                                         <div className="font-bold">{job.title}</div>
                                         <div className="text-sm opacity-70">{job.company_name}</div>
                                     </td>
